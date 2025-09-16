@@ -2,10 +2,25 @@ import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useRealisticGrassControls } from '../hooks/useRealisticGrassControls';
+import { createNoise2D } from 'simplex-noise';
 
 export default function RealisticGrassDemo() {
   const controls = useRealisticGrassControls();
   const groupRef = useRef<THREE.Group>(null);
+  const noise2D = useMemo(() => createNoise2D(), []);
+  
+  // Function to get terrain height at any position
+  const getTerrainHeight = useMemo(() => {
+    return (x: number, z: number) => {
+      // Multi-octave noise for natural terrain variation
+      let height = 0;
+      height += noise2D(x * 2, z * 2) * 0.08;  // Small hills
+      height += noise2D(x * 4, z * 4) * 0.04;  // Medium details
+      height += noise2D(x * 8, z * 8) * 0.02;  // Fine details
+      height += noise2D(x * 16, z * 16) * 0.01; // Very fine details
+      return height;
+    };
+  }, [noise2D]);
   
   // Add subtle floating animation like the terrain
   useFrame((state) => {
@@ -123,6 +138,27 @@ export default function RealisticGrassDemo() {
     };
   }, [controls.bladeWidth, controls.bladeHeight]);
 
+  // Create terrain geometry
+  const terrainGeometry = useMemo(() => {
+    const geometry = new THREE.PlaneGeometry(
+      controls.patchSize * 1.2, 
+      controls.patchSize * 1.2, 
+      32, 32
+    );
+    
+    const positions = geometry.attributes.position.array as Float32Array;
+    
+    // Apply terrain height to each vertex
+    for (let i = 0; i < positions.length; i += 3) {
+      const x = positions[i];
+      const z = positions[i + 1];
+      positions[i + 2] = getTerrainHeight(x, z);
+    }
+    
+    geometry.computeVertexNormals();
+    return geometry;
+  }, [controls.patchSize, getTerrainHeight]);
+
   // Create varied grass blades with interactive controls
   const grassData = useMemo(() => {
     const blades = [];
@@ -135,10 +171,11 @@ export default function RealisticGrassDemo() {
         // Position with random offset
         const posX = (x * spacing - patchSize/2) + (Math.random() - 0.5) * spacing * 0.5;
         const posZ = (z * spacing - patchSize/2) + (Math.random() - 0.5) * spacing * 0.5;
+        const posY = getTerrainHeight(posX, posZ); // Follow terrain height
         
         // Random attributes for each blade
         const blade = {
-          position: [posX, 0, posZ] as [number, number, number],
+          position: [posX, posY, posZ] as [number, number, number],
           rotation: [
             (Math.random() - 0.5) * 0.3,  // Lean X
             Math.random() * Math.PI * 2,   // Random Y rotation
@@ -164,29 +201,61 @@ export default function RealisticGrassDemo() {
       ref={groupRef}
       position={[controls.position.x, controls.position.y, controls.position.z]}
     >
-      {/* Dark soil ground - scaled to patch size */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]}>
-        <planeGeometry args={[controls.patchSize * 1.2, controls.patchSize * 1.2]} />
+      {/* Terrain with natural undulations */}
+      <mesh 
+        geometry={terrainGeometry} 
+        rotation={[-Math.PI / 2, 0, 0]} 
+        position={[0, -0.001, 0]}
+      >
         <meshStandardMaterial 
           color="#2a1f1a" 
           roughness={0.9}
+          wireframe={false}
         />
       </mesh>
       
-      {/* Add some dirt particles for realism - scaled to patch size */}
-      {Array.from({ length: 20 }).map((_, i) => (
-        <mesh
-          key={`dirt-${i}`}
-          position={[
-            (Math.random() - 0.5) * controls.patchSize,
-            Math.random() * (controls.patchSize * 0.001),
-            (Math.random() - 0.5) * controls.patchSize
-          ]}
-        >
-          <sphereGeometry args={[(controls.patchSize * 0.001) + Math.random() * (controls.patchSize * 0.001), 4, 4]} />
-          <meshStandardMaterial color="#1a0f0a" roughness={1} />
-        </mesh>
-      ))}
+      {/* Add small rocks scattered across terrain */}
+      {Array.from({ length: 8 }).map((_, i) => {
+        const rockX = (Math.random() - 0.5) * controls.patchSize * 0.8;
+        const rockZ = (Math.random() - 0.5) * controls.patchSize * 0.8;
+        const rockY = getTerrainHeight(rockX, rockZ);
+        const rockSize = 0.02 + Math.random() * 0.04;
+        
+        return (
+          <mesh
+            key={`rock-${i}`}
+            position={[rockX, rockY + rockSize/2, rockZ]}
+            rotation={[
+              Math.random() * Math.PI,
+              Math.random() * Math.PI,
+              Math.random() * Math.PI
+            ]}
+          >
+            <dodecahedronGeometry args={[rockSize, 0]} />
+            <meshStandardMaterial 
+              color={`hsl(${20 + Math.random() * 15}, 20%, ${15 + Math.random() * 10}%)`}
+              roughness={0.95} 
+            />
+          </mesh>
+        );
+      })}
+      
+      {/* Add some dirt particles and pebbles */}
+      {Array.from({ length: 15 }).map((_, i) => {
+        const dirtX = (Math.random() - 0.5) * controls.patchSize;
+        const dirtZ = (Math.random() - 0.5) * controls.patchSize;
+        const dirtY = getTerrainHeight(dirtX, dirtZ);
+        
+        return (
+          <mesh
+            key={`dirt-${i}`}
+            position={[dirtX, dirtY + 0.002, dirtZ]}
+          >
+            <sphereGeometry args={[0.005 + Math.random() * 0.008, 6, 6]} />
+            <meshStandardMaterial color="#1a0f0a" roughness={1} />
+          </mesh>
+        );
+      })}
       
       {/* Render individual grass blades */}
       {grassData.map((blade, index) => (

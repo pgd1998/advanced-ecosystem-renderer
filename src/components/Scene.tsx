@@ -25,9 +25,9 @@ export default function Scene({ useLOD = false }: SceneProps) {
         mieDirectionalG={0.7}
       />
       
-      <Environment preset="sunset" background={false} />
+      <Environment preset="sunset" />
       
-      <fog attach="fog" args={['#98FB98', 80, 150]} />
+      <fog attach="fog" args={['#98FB98', 50, 200]} />
       
       <WindSystem />
       <Terrain />

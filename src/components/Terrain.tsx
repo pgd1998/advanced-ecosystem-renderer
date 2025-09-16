@@ -51,14 +51,13 @@ export default function Terrain({
     return { geometry: geo, material: mat };
   }, [size, resolution, heightScale, noise2D]);
 
-  // Removed animation for better performance
-  // useFrame((state) => {
-  //   if (meshRef.current) {
-  //     // Subtle terrain breathing effect
-  //     const time = state.clock.elapsedTime;
-  //     meshRef.current.position.y = Math.sin(time * 0.1) * 0.1;
-  //   }
-  // });
+  useFrame((state) => {
+    if (meshRef.current) {
+      // Subtle terrain breathing effect
+      const time = state.clock.elapsedTime;
+      meshRef.current.position.y = Math.sin(time * 0.1) * 0.1;
+    }
+  });
 
   return (
     <mesh

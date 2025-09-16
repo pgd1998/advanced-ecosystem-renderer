@@ -7,6 +7,7 @@ import PerformanceMonitor from '@components/PerformanceMonitor';
 import PerformanceCollector from '@components/PerformanceCollector';
 import EcosystemControls from '@components/EcosystemControls';
 import GrassDemo from '@components/GrassDemo';
+import WebGLErrorBoundary from '@components/WebGLErrorBoundary';
 
 export default function App() {
   const [perfData, setPerfData] = useState({
@@ -47,7 +48,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <WebGLErrorBoundary>
       <Canvas
         camera={{
           position: [0, 50, 50],
@@ -55,23 +56,33 @@ export default function App() {
           near: 0.1,
           far: 20000
         }}
-        dpr={[0.5, 1.5]} // Reduced DPR for better performance
+        dpr={[1, 2]}
         gl={{
-          antialias: false, // Disabled for better performance
+          antialias: true,
           alpha: false,
           powerPreference: "high-performance",
           preserveDrawingBuffer: false,
-          stencil: false,
-          depth: true
+          failIfMajorPerformanceCaveat: false,
+          stencil: false
         }}
-        performance={{
-          current: 1,
-          min: 0.5,
-          max: 1,
-          debounce: 200
+        onCreated={({ gl }) => {
+          // Add context loss recovery
+          gl.getExtension('WEBGL_lose_context');
+          const canvas = gl.domElement;
+          
+          canvas.addEventListener('webglcontextlost', (event) => {
+            console.log('WebGL context lost, preventing default...');
+            event.preventDefault();
+          });
+          
+          canvas.addEventListener('webglcontextrestored', () => {
+            console.log('WebGL context restored');
+            // Force re-render
+            gl.resetState?.();
+          });
         }}
         style={{
-          background: 'linear-gradient(180deg, #87CEEB 0%, #B0E0E6 30%, #98FB98 100%)'
+          background: 'transparent'
         }}
       >
         <Suspense fallback={<LoadingScreen />}>
@@ -137,6 +148,6 @@ export default function App() {
           {useLOD ? 'LOD: ON' : 'LOD: OFF'}
         </button>
       </div>
-    </>
+    </WebGLErrorBoundary>
   );
 }

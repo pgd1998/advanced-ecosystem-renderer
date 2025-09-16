@@ -1,9 +1,19 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
 import { useRealisticGrassControls } from '../hooks/useRealisticGrassControls';
 
 export default function RealisticGrassDemo() {
   const controls = useRealisticGrassControls();
+  const groupRef = useRef<THREE.Group>(null);
+  
+  // Add subtle floating animation like the terrain
+  useFrame((state) => {
+    if (groupRef.current && controls.enableWind) {
+      const time = state.clock.elapsedTime;
+      groupRef.current.position.y = controls.position.y + Math.sin(time * 0.8) * 0.02;
+    }
+  });
   
   // Create more realistic grass blade geometry
   const createGrassBlade = useMemo(() => {
@@ -150,7 +160,10 @@ export default function RealisticGrassDemo() {
   const simpleBladeGeo = useMemo(() => createSimpleGrassBlade(), [createSimpleGrassBlade]);
 
   return (
-    <group position={[controls.position.x, controls.position.y, controls.position.z]}>
+    <group 
+      ref={groupRef}
+      position={[controls.position.x, controls.position.y, controls.position.z]}
+    >
       {/* Dark soil ground - scaled to patch size */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]}>
         <planeGeometry args={[controls.patchSize * 1.2, controls.patchSize * 1.2]} />

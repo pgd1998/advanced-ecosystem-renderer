@@ -18,7 +18,7 @@ export default function App() {
     memoryUsage: 0
   });
   
-  const [showGrassDemo, setShowGrassDemo] = useState(false);
+  const [showGrassDemo, setShowGrassDemo] = useState(true);
   const [useLOD, setUseLOD] = useState(false);
 
   // Show grass demo if toggled

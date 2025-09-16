@@ -1,6 +1,6 @@
 import { Suspense, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, Sky, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import SimpleGrassDemo from './SimpleGrassDemo';
 import RealisticGrassDemo from './RealisticGrassDemo';
@@ -9,7 +9,7 @@ export default function GrassDemo() {
   const [showRealistic, setShowRealistic] = useState(true);
   
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#87CEEB' }}>
+    <div style={{ width: '100vw', height: '100vh', background: 'linear-gradient(135deg, #ffd89b 0%, #f4a261 50%, #e76f51 100%)' }}>
       <Canvas
         camera={{
           position: [3, 2, 3], // Adjusted for 3m patch
@@ -24,6 +24,19 @@ export default function GrassDemo() {
         }}
       >
         <Suspense fallback={null}>
+          {/* Sunset sky and environment */}
+          <Sky
+            distance={450000}
+            sunPosition={[100, 20, 100]}
+            inclination={0.49}
+            azimuth={0.25}
+            turbidity={10}
+            rayleigh={3}
+            mieCoefficient={0.005}
+            mieDirectionalG={0.7}
+          />
+          <Environment preset="sunset" />
+          
           {/* Better lighting for grass */}
           <ambientLight intensity={0.4} />
           <directionalLight

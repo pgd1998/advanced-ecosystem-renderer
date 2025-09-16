@@ -86,51 +86,6 @@ export default function RealisticGrassDemo() {
     }
   });
   
-  // Create more realistic grass blade geometry
-  const createGrassBlade = useMemo(() => {
-    return () => {
-      // Create a more complex grass blade with multiple segments
-      const curve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0, 0, 0),                    // Base
-        new THREE.Vector3(0.0001, 0.003, 0.0002),     // Slight bend at 3mm
-        new THREE.Vector3(0.0002, 0.006, 0.0005),     // More bend at 6mm
-        new THREE.Vector3(0.0003, 0.009, 0.0008),     // Continue bending
-        new THREE.Vector3(0.0004, 0.012, 0.001),      // Near tip
-        new THREE.Vector3(0.0004, 0.015, 0.0012)      // Tip at 15mm
-      ]);
-
-      // Create a tapered profile for the blade
-      const bladeShape = new THREE.Shape();
-      
-      // Create blade cross-section (very thin)
-      bladeShape.moveTo(0, -0.0005);  // 0.5mm width at base
-      bladeShape.lineTo(0, 0.0005);
-      
-      // Extrude along the curve with tapering
-      const extrudeSettings = {
-        steps: 20,
-        bevelEnabled: false,
-        extrudePath: curve,
-      };
-
-      // Create geometry with custom tapering
-      const geometry = new THREE.ExtrudeGeometry(bladeShape, extrudeSettings);
-      
-      // Manually taper the geometry vertices
-      const positions = geometry.attributes.position.array as Float32Array;
-      for (let i = 0; i < positions.length; i += 3) {
-        const y = positions[i + 1];
-        // Taper based on height (0 to 0.015)
-        const taper = 1 - (y / 0.015) * 0.9; // Taper to 10% at tip
-        positions[i] *= taper;     // x
-        positions[i + 2] *= taper; // z
-      }
-      
-      geometry.computeVertexNormals();
-      return geometry;
-    };
-  }, []);
-
   // Create smooth, soft grass blade geometry with interactive controls
   const createSimpleGrassBlade = useMemo(() => {
     return () => {

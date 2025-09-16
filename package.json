@@ -14,24 +14,25 @@
     "analyze": "vite-bundle-analyzer dist"
   },
   "dependencies": {
-    "three": "^0.160.0",
-    "@react-three/fiber": "^8.15.12",
     "@react-three/drei": "^9.92.7",
+    "@react-three/fiber": "^8.15.12",
     "@react-three/postprocessing": "^2.15.11",
+    "@use-gesture/react": "^10.3.0",
+    "framer-motion": "^10.16.16",
+    "leva": "^0.9.35",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "zustand": "^4.4.7",
-    "leva": "^0.9.35",
-    "framer-motion": "^10.16.16",
-    "@use-gesture/react": "^10.3.0",
     "simplex-noise": "^4.0.1",
-    "stats.js": "^0.17.0"
+    "stats.js": "^0.17.0",
+    "three": "^0.160.0",
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
     "@types/three": "^0.160.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "terser": "^5.44.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.10",
     "vite-plugin-glsl": "^1.2.1",

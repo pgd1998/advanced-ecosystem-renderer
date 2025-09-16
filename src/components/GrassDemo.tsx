@@ -6,7 +6,7 @@ import SimpleGrassDemo from './SimpleGrassDemo';
 import RealisticGrassDemo from './RealisticGrassDemo';
 
 export default function GrassDemo() {
-  const [showRealistic, setShowRealistic] = useState(true);
+  const [showRealistic] = useState(true);
   
   return (
     <div style={{ width: '100vw', height: '100vh', background: 'linear-gradient(135deg, #ffd89b 0%, #f4a261 50%, #e76f51 100%)' }}>

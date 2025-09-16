@@ -4,9 +4,10 @@ import { OrbitControls, Sky, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import SimpleGrassDemo from './SimpleGrassDemo';
 import RealisticGrassDemo from './RealisticGrassDemo';
+import OptimizedGrassDemo from './OptimizedGrassDemo';
 
 export default function GrassDemo() {
-  const [showRealistic] = useState(true);
+  const [showOptimized] = useState(true);
   
   return (
     <div style={{ width: '100vw', height: '100vh', background: 'linear-gradient(135deg, #ffd89b 0%, #f4a261 50%, #e76f51 100%)' }}>
@@ -51,8 +52,8 @@ export default function GrassDemo() {
             color="#ffeaa7"
           />
           
-          {/* The grass patch */}
-          {showRealistic ? <RealisticGrassDemo /> : <SimpleGrassDemo />}
+          {/* The grass patch - using optimized version for performance */}
+          {showOptimized ? <OptimizedGrassDemo /> : <RealisticGrassDemo />}
           
           {/* Camera controls */}
           <OrbitControls

@@ -22,11 +22,67 @@ export default function RealisticGrassDemo() {
     };
   }, [noise2D]);
   
-  // Add subtle floating animation like the terrain
+  // Wind animation system
   useFrame((state) => {
     if (groupRef.current && controls.enableWind) {
       const time = state.clock.elapsedTime;
-      groupRef.current.position.y = controls.position.y + Math.sin(time * 0.8) * 0.02;
+      
+      // Apply wind animation to each grass blade
+      const children = groupRef.current.children;
+      children.forEach((child, index) => {
+        // Skip terrain mesh and only apply to grass blades
+        if (child instanceof THREE.Mesh && 
+            child.geometry instanceof THREE.PlaneGeometry && 
+            child.userData.isGrassBlade) {
+          const blade = child;
+          const positions = blade.geometry.attributes.position.array as Float32Array;
+          const originalPositions = blade.userData.originalPositions;
+          
+          if (!originalPositions) {
+            // Store original positions on first frame
+            blade.userData.originalPositions = new Float32Array(positions);
+            return;
+          }
+          
+          // Wind parameters
+          const windDir = (controls.windDirection * Math.PI) / 180;
+          const windStrength = controls.windStrength;
+          const windSpeed = controls.windSpeed;
+          
+          // Add wind gusts
+          let gustMultiplier = 1;
+          if (controls.windGusts) {
+            gustMultiplier = 1 + Math.sin(time * 0.5 + index * 0.1) * 0.3 + 
+                           Math.sin(time * 1.3 + index * 0.2) * 0.2;
+          }
+          
+          const finalWindStrength = windStrength * gustMultiplier;
+          
+          // Apply wind to vertices
+          for (let i = 0; i < positions.length; i += 3) {
+            const originalY = originalPositions[i + 1];
+            const y = originalY + controls.bladeHeight/2;
+            
+            if (y > 0) {
+              // Height ratio for progressive wind effect
+              const heightRatio = y / controls.bladeHeight;
+              const windEffect = heightRatio * heightRatio; // More effect at top
+              
+              // Wind displacement - more subtle
+              const windPhase = time * windSpeed + index * 0.1;
+              const windX = Math.cos(windDir) * finalWindStrength * windEffect * 
+                           (Math.sin(windPhase) * 0.7 + Math.sin(windPhase * 2.3) * 0.3);
+              const windZ = Math.sin(windDir) * finalWindStrength * windEffect * 
+                           (Math.sin(windPhase + 0.5) * 0.7 + Math.sin(windPhase * 1.7) * 0.3);
+              
+              positions[i] = originalPositions[i] + windX * controls.bladeWidth;
+              positions[i + 2] = originalPositions[i + 2] + windZ * controls.bladeHeight * 0.2;
+            }
+          }
+          
+          blade.geometry.attributes.position.needsUpdate = true;
+        }
+      });
     }
   });
   
@@ -265,6 +321,7 @@ export default function RealisticGrassDemo() {
           position={blade.position}
           rotation={blade.rotation}
           scale={[blade.scale * 1.1, blade.scale * 1.3, blade.scale]}
+          userData={{ isGrassBlade: true }}
         >
           <meshPhysicalMaterial 
             color={blade.color}
@@ -296,6 +353,24 @@ export default function RealisticGrassDemo() {
             <boxGeometry args={[0.002, controls.patchSize * 0.1, 0.002]} />
             <meshBasicMaterial color="cyan" />
           </mesh>
+          
+          {/* Wind direction indicator */}
+          {controls.enableWind && (
+            <group 
+              rotation={[0, (controls.windDirection * Math.PI) / 180, 0]}
+              position={[0, controls.patchSize * 0.02, 0]}
+            >
+              <mesh position={[controls.patchSize * 0.05, 0, 0]}>
+                <boxGeometry args={[controls.patchSize * 0.08 * controls.windStrength, 0.005, 0.005]} />
+                <meshBasicMaterial color="red" />
+              </mesh>
+              {/* Arrow tip */}
+              <mesh position={[controls.patchSize * 0.08 * controls.windStrength, 0, 0]}>
+                <coneGeometry args={[0.01, 0.02, 4]} />
+                <meshBasicMaterial color="red" />
+              </mesh>
+            </group>
+          )}
         </group>
       )}
     </group>

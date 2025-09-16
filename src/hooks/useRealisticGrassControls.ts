@@ -11,6 +11,10 @@ export function useRealisticGrassControls() {
       step: 0.1
     },
     showReference: true,
-    enableWind: true
+    enableWind: true,
+    windStrength: { value: 0.2, min: 0, max: 0.5, step: 0.05 },
+    windSpeed: { value: 0.8, min: 0.1, max: 2, step: 0.1 },
+    windDirection: { value: 0, min: 0, max: 360, step: 10 },
+    windGusts: true
   });
 }

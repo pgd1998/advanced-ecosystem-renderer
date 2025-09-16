@@ -68,7 +68,7 @@ export default function GrassDemo() {
       </Canvas>
       
       {/* Instructions */}
-      <div style={{
+      {/* <div style={{
         position: 'absolute',
         top: 10,
         left: 10,
@@ -102,7 +102,7 @@ export default function GrassDemo() {
         <p style={{ margin: '5px 0', fontSize: '10px', opacity: 0.7 }}>
           Realistic grass: Curved blades, tapered tips, varied colors
         </p>
-      </div>
+      </div> */}
     </div>
   );
 }

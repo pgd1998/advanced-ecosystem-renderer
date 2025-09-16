@@ -26,7 +26,7 @@ export default function App() {
     return (
       <div>
         <GrassDemo />
-        <button 
+        {/* <button 
           onClick={() => setShowGrassDemo(false)}
           style={{
             position: 'absolute',
@@ -42,7 +42,7 @@ export default function App() {
           }}
         >
           Back to Main Scene
-        </button>
+        </button> */}
       </div>
     );
   }

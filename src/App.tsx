@@ -1,18 +1,27 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stats } from '@react-three/drei';
 import Scene from '@components/Scene';
 import LoadingScreen from '@components/LoadingScreen';
 import PerformanceMonitor from '@components/PerformanceMonitor';
+import PerformanceCollector from '@components/PerformanceCollector';
 import EcosystemControls from '@components/EcosystemControls';
 
 export default function App() {
+  const [perfData, setPerfData] = useState({
+    fps: 0,
+    frameTime: 0,
+    drawCalls: 0,
+    triangles: 0,
+    memoryUsage: 0
+  });
+
   return (
     <>
       <Canvas
         camera={{
-          position: [0, 15, 30],
-          fov: 60,
+          position: [0, 5, 15],
+          fov: 75,
           near: 0.1,
           far: 1000
         }}
@@ -24,7 +33,7 @@ export default function App() {
           preserveDrawingBuffer: false
         }}
         style={{
-          background: 'linear-gradient(135deg, #87CEEB 0%, #98FB98 50%, #228B22 100%)'
+          background: 'linear-gradient(180deg, #87CEEB 0%, #B0E0E6 30%, #98FB98 100%)'
         }}
       >
         <Suspense fallback={<LoadingScreen />}>
@@ -43,9 +52,10 @@ export default function App() {
             dampingFactor={0.05}
           />
           <Stats showPanel={0} className="stats" />
+          <PerformanceCollector onUpdate={setPerfData} />
         </Suspense>
       </Canvas>
-      <PerformanceMonitor />
+      <PerformanceMonitor perfData={perfData} />
       <EcosystemControls />
     </>
   );

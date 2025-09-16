@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import React from 'react';
 
 interface PerformanceData {
   fps: number;
@@ -9,46 +8,11 @@ interface PerformanceData {
   memoryUsage: number;
 }
 
-export default function PerformanceMonitor() {
-  const { gl } = useThree();
-  const [perfData, setPerfData] = useState<PerformanceData>({
-    fps: 0,
-    frameTime: 0,
-    drawCalls: 0,
-    triangles: 0,
-    memoryUsage: 0
-  });
+interface PerformanceMonitorProps {
+  perfData: PerformanceData;
+}
 
-  const [frameCount, setFrameCount] = useState(0);
-  const [lastTime, setLastTime] = useState(performance.now());
-
-  useFrame(() => {
-    setFrameCount(prev => prev + 1);
-    
-    const now = performance.now();
-    const deltaTime = now - lastTime;
-    
-    // Update FPS every 60 frames
-    if (frameCount % 60 === 0) {
-      const fps = Math.round(60000 / deltaTime);
-      const frameTime = Number((deltaTime / 60).toFixed(2));
-      
-      // Get WebGL render info
-      const info = gl.info;
-      
-      setPerfData({
-        fps,
-        frameTime,
-        drawCalls: info.render.calls,
-        triangles: info.render.triangles,
-        memoryUsage: (performance as any).memory?.usedJSHeapSize 
-          ? Math.round((performance as any).memory.usedJSHeapSize / 1024 / 1024)
-          : 0
-      });
-      
-      setLastTime(now);
-    }
-  });
+export default function PerformanceMonitor({ perfData }: PerformanceMonitorProps) {
 
   return (
     <div style={{

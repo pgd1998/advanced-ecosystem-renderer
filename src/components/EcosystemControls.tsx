@@ -10,7 +10,7 @@ export default function EcosystemControls() {
     timeOfDay,
     seasonalTint
   } = useControls('Ecosystem Settings', {
-    grassDensity: { value: 50000, min: 1000, max: 200000, step: 1000 },
+    grassDensity: { value: 15000, min: 1000, max: 50000, step: 1000 },
     windStrength: { value: 1.0, min: 0, max: 3.0, step: 0.1 },
     windSpeed: { value: 1.0, min: 0.1, max: 5.0, step: 0.1 },
     terrainHeight: { value: 8, min: 0, max: 20, step: 1 },
@@ -29,12 +29,12 @@ export default function EcosystemControls() {
   const performanceControls = useControls('Performance', {
     lodDistance: { value: 50, min: 10, max: 200, step: 5 },
     shadowQuality: { 
-      value: 'High',
-      options: ['Low', 'Medium', 'High', 'Ultra']
+      value: 'Low',
+      options: ['Off', 'Low', 'Medium', 'High']
     },
-    antialiasing: true,
+    antialiasing: false,
     enableWind: true,
-    enableShadows: true
+    enableShadows: false
   });
 
   return (

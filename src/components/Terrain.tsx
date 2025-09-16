@@ -10,9 +10,9 @@ interface TerrainProps {
 }
 
 export default function Terrain({ 
-  size = 200, 
-  resolution = 256, 
-  heightScale = 8 
+  size = 100, 
+  resolution = 64, 
+  heightScale = 4 
 }: TerrainProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const noise2D = useMemo(() => createNoise2D(), []);
@@ -42,9 +42,9 @@ export default function Terrain({
     // Recompute normals for proper lighting
     geo.computeVertexNormals();
     
-    // Create material with grass-like appearance
+    // Create material with realistic ground appearance
     const mat = new THREE.MeshLambertMaterial({
-      color: '#4a7c59',
+      color: '#3d5a3d',
       side: THREE.DoubleSide
     });
     
@@ -65,7 +65,7 @@ export default function Terrain({
       geometry={geometry}
       material={material}
       rotation={[-Math.PI / 2, 0, 0]}
-      receiveShadow
+      receiveShadow={false}
     />
   );
 }

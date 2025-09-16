@@ -8,27 +8,33 @@ varying vec3 vNormal;
 varying float vWindEffect;
 
 void main() {
-  // Gradient from base to tip
+  // Create realistic grass coloring
   float heightGradient = vUv.y;
   
-  // Mix grass colors based on height
+  // Base to tip color gradient
   vec3 color = mix(grassColor, grassTipColor, heightGradient);
   
-  // Add some color variation based on wind effect
-  color += vec3(0.1, 0.15, 0.05) * vWindEffect * 0.3;
+  // Add some variation based on position for natural look
+  float variation = sin(vPosition.x * 10.0) * 0.1 + cos(vPosition.z * 8.0) * 0.1;
+  color += variation * vec3(0.1, 0.2, 0.05);
   
-  // Simple lighting calculation
-  vec3 lightDirection = normalize(vec3(0.5, 1.0, 0.3));
-  float lightIntensity = max(dot(vNormal, lightDirection), 0.0) * 0.8 + 0.2;
+  // Simple directional lighting
+  vec3 lightDir = normalize(vec3(0.5, 1.0, 0.3));
+  float diffuse = max(dot(vNormal, lightDir), 0.0);
+  float ambient = 0.3;
+  float lightIntensity = ambient + diffuse * 0.7;
+  
+  // Add subtle wind-based brightness variation
+  lightIntensity += vWindEffect * 0.1;
   
   color *= lightIntensity;
   
-  // Add subtle pulsing effect
-  color += vec3(0.05, 0.08, 0.02) * sin(time * 2.0 + vPosition.x * 0.1) * 0.1;
+  // Create natural grass blade alpha (tapered edges)
+  float alpha = 1.0 - abs(vUv.x - 0.5) * 2.0;
+  alpha = smoothstep(0.0, 1.0, alpha);
   
-  // Alpha based on UV coordinates for natural grass blade shape
-  float alpha = 1.0 - abs(vUv.x - 0.5) * 2.0; // Fade edges
-  alpha *= (1.0 - vUv.y * 0.1); // Slight fade at top
+  // Slight transparency at the tips for softer look
+  alpha *= 1.0 - heightGradient * 0.1;
   
   gl_FragColor = vec4(color, alpha);
 }

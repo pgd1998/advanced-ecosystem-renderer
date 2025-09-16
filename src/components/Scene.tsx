@@ -2,10 +2,15 @@ import React from 'react';
 import { Environment, Sky } from '@react-three/drei';
 import Terrain from './Terrain';
 import GrassField from './GrassField';
+import GrassFieldLOD from './GrassFieldLOD';
 import Lighting from './Lighting';
 import WindSystem from './WindSystem';
 
-export default function Scene() {
+interface SceneProps {
+  useLOD?: boolean;
+}
+
+export default function Scene({ useLOD = false }: SceneProps) {
   return (
     <>
       <Lighting />
@@ -27,7 +32,7 @@ export default function Scene() {
       
       <WindSystem />
       <Terrain />
-      <GrassField />
+      {useLOD ? <GrassFieldLOD /> : <GrassField />}
     </>
   );
 }

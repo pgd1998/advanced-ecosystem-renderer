@@ -1,9 +1,7 @@
-import { useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useMemo, useRef, useEffect } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { createNoise2D } from 'simplex-noise';
-import grassVertexShader from '@shaders/grass/grass.vert';
-import grassFragmentShader from '@shaders/grass/grass.frag';
 
 interface GrassFieldProps {
   count?: number;
@@ -11,115 +9,210 @@ interface GrassFieldProps {
 }
 
 export default function GrassField({ 
-  count = 15000, 
-  fieldSize = 80 
+  count, // Will be calculated based on density
+  fieldSize = 30 // 30m x 30m scaled version of the realistic patch
 }: GrassFieldProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
   const noise2D = useMemo(() => createNoise2D(), []);
+  const { camera } = useThree();
+  const windTime = useRef(0);
 
-  const { geometry, material, matrices } = useMemo(() => {
-    // Create simple grass blade using PlaneGeometry and modify it
-    const grassGeometry = new THREE.PlaneGeometry(0.2, 2, 1, 4);
+  // Create grass blade geometry scaled up from the realistic patch
+  const createGrassBlade = (lod: 'high' | 'medium' | 'low' = 'medium') => {
+    // Adjust segments based on LOD
+    const segments = lod === 'high' ? [2, 8] : lod === 'medium' ? [1, 4] : [1, 2];
+    // Scale from realistic patch: original was 0.0012m x 0.012m, scale up by factor of ~40
+    // This gives us ~5cm wide x 50cm tall grass blades
+    const geometry = new THREE.PlaneGeometry(0.05, 0.5, segments[0], segments[1]);
+    const positions = geometry.attributes.position.array as Float32Array;
     
-    // Bend the grass blade for more natural look
-    const positions = grassGeometry.attributes.position.array as Float32Array;
     for (let i = 0; i < positions.length; i += 3) {
-      const y = positions[i + 1];
+      const originalY = positions[i + 1];
+      const y = originalY + 0.25; // Shift so y goes from 0 to 0.5 (50cm)
       const x = positions[i];
       
-      // Taper the width towards the tip
-      const heightFactor = (y + 1) / 2; // 0 to 1 from bottom to top
-      positions[i] = x * (1 - heightFactor * 0.5); // Narrow at top
-      
-      // Add slight curve
-      const bend = heightFactor * 0.3;
-      positions[i + 2] += Math.sin(bend * Math.PI) * 0.1;
+      // Ensure we don't divide by zero or get NaN
+      if (y >= 0 && y <= 0.5) {
+        // Smoother taper using cosine for rounded tip
+        const heightRatio = Math.min(Math.max(y / 0.5, 0), 1); // Clamp between 0 and 1
+        const taperAngle = heightRatio * Math.PI * 0.45;
+        const taperFactor = Math.cos(taperAngle) * 0.9; // Cosine taper for round tip
+        
+        // Only apply taper if factor is valid
+        if (!isNaN(taperFactor) && isFinite(taperFactor)) {
+          positions[i] = x * taperFactor; // Gentler taper
+        }
+        
+        // Natural grass bend - scaled proportionally
+        const bendAmount = Math.pow(heightRatio, 2.5) * 0.06; // Proportional bend for 50cm grass
+        if (!isNaN(bendAmount) && isFinite(bendAmount)) {
+          positions[i + 2] = bendAmount;
+          
+          // Add subtle wave for organic feel
+          const waveAmount = Math.sin(heightRatio * Math.PI * 2) * 0.003;
+          if (!isNaN(waveAmount) && isFinite(waveAmount)) {
+            positions[i + 2] += waveAmount;
+          }
+        }
+        
+        // Slight droop at the tip for softness
+        if (heightRatio > 0.7) {
+          const droopFactor = (heightRatio - 0.7) / 0.3;
+          const droopAmount = droopFactor * droopFactor * 0.02;
+          if (!isNaN(droopAmount) && isFinite(droopAmount)) {
+            positions[i + 1] = y - droopAmount;
+          } else {
+            positions[i + 1] = y;
+          }
+        } else {
+          positions[i + 1] = y;
+        }
+      }
     }
     
-    grassGeometry.computeVertexNormals();
+    // Verify no NaN values before computing normals
+    for (let i = 0; i < positions.length; i++) {
+      if (isNaN(positions[i]) || !isFinite(positions[i])) {
+        positions[i] = 0; // Reset to 0 if NaN
+      }
+    }
+    
+    geometry.computeVertexNormals();
+    return geometry;
+  };
 
-    // Create realistic grass material with custom shaders
-    const grassMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        time: { value: 0 },
-        windStrength: { value: 0.5 },
-        windDirection: { value: new THREE.Vector2(1, 0.5) },
-        grassColor: { value: new THREE.Color('#2d5016') },
-        grassTipColor: { value: new THREE.Color('#7cb342') }
-      },
-      vertexShader: grassVertexShader,
-      fragmentShader: grassFragmentShader,
+  const { geometry, material, matrices, colorArray, actualCount } = useMemo(() => {
+    const grassGeometry = createGrassBlade('medium');
+
+    // Use realistic but performance-friendly material
+    const grassMaterial = new THREE.MeshStandardMaterial({
+      vertexColors: true,
       side: THREE.DoubleSide,
-      transparent: true
+      roughness: 0.95,
+      metalness: 0,
+      alphaTest: 0.1, // For better transparency performance
     });
 
-    // Generate grass positions
-    const matrixArray = new Float32Array(count * 16);
+    // Replicate the EXACT realistic patch scaled up
+    // Original patch: 25x25 = 625 blades in 0.03m (3cm) patch
+    // Scale factor: 30m / 0.03m = 1000x
+    // We'll use the exact same 25x25 grid but scaled up
+    const gridSize = 25; // Same as realistic patch
+    const calculatedCount = count || (gridSize * gridSize);
+    const spacing = fieldSize / gridSize; // 30m / 25 = 1.2m spacing between blades
+    
+    console.log(`Scaled realistic patch: ${fieldSize}m x ${fieldSize}m, Grid: ${gridSize}x${gridSize}, Grass count: ${calculatedCount}, Spacing: ${spacing}m`);
+
+    // Generate grass positions using the EXACT same grid as realistic patch
+    const matrixArray = new Float32Array(calculatedCount * 16);
+    const colors = new Float32Array(calculatedCount * 3);
     const dummy = new THREE.Object3D();
     
-    for (let i = 0; i < count; i++) {
-      // Random position within field
-      const x = (Math.random() - 0.5) * fieldSize;
-      const z = (Math.random() - 0.5) * fieldSize;
-      
-      // Get terrain height at this position (smaller scale for gentler terrain)
-      const height = noise2D(x * 0.01, z * 0.01) * 2;
-      
-      // Position grass blade at ground level
-      dummy.position.set(x, height, z);
-      
-      // Random rotation for natural look
-      dummy.rotation.y = Math.random() * Math.PI * 2;
-      dummy.rotation.x = (Math.random() - 0.5) * 0.2; // Slight random lean
-      dummy.rotation.z = (Math.random() - 0.5) * 0.2;
-      
-      // Random scale for variety (taller grass looks more realistic)
-      const scale = 1.2 + Math.random() * 1.0;
-      dummy.scale.set(scale * 0.9, scale, scale * 0.9);
-      
-      dummy.updateMatrix();
-      dummy.matrix.toArray(matrixArray, i * 16);
+    let bladeIndex = 0;
+    
+    for (let x = 0; x < gridSize && bladeIndex < calculatedCount; x++) {
+      for (let z = 0; z < gridSize && bladeIndex < calculatedCount; z++) {
+        // Position with random offset like the realistic patch
+        const posX = (x * spacing - fieldSize/2) + (Math.random() - 0.5) * spacing * 0.5;
+        const posZ = (z * spacing - fieldSize/2) + (Math.random() - 0.5) * spacing * 0.5;
+        
+        // Get terrain height at this position
+        const height = noise2D(posX * 0.01, posZ * 0.01) * 2;
+        
+        // Position grass blade at ground level
+        dummy.position.set(posX, height, posZ);
+        
+        // Random attributes for each blade (same as realistic patch)
+        dummy.rotation.set(
+          (Math.random() - 0.5) * 0.3,  // Lean X
+          Math.random() * Math.PI * 2,   // Random Y rotation
+          (Math.random() - 0.5) * 0.3   // Lean Z
+        );
+        
+        // Scale variation like the realistic patch
+        const scale = 0.8 + Math.random() * 0.4; // Scale variation
+        dummy.scale.set(
+          scale * 1.1, // Slightly wider like the patch
+          scale * 1.3, // Height variation like the patch
+          scale
+        );
+        
+        dummy.updateMatrix();
+        dummy.matrix.toArray(matrixArray, bladeIndex * 16);
+        
+        // Generate realistic grass colors (same as patch)
+        const hue = 105 + Math.random() * 25; // Green range
+        const saturation = 35 + Math.random() * 20;
+        const lightness = 28 + Math.random() * 12;
+        
+        const color = new THREE.Color(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
+        colors[bladeIndex * 3] = color.r;
+        colors[bladeIndex * 3 + 1] = color.g;
+        colors[bladeIndex * 3 + 2] = color.b;
+        
+        bladeIndex++;
+      }
     }
 
     return { 
       geometry: grassGeometry, 
       material: grassMaterial, 
-      matrices: matrixArray 
+      matrices: matrixArray,
+      colorArray: colors,
+      actualCount: bladeIndex
     };
   }, [count, fieldSize, noise2D]);
 
-  useFrame((state) => {
-    // Update shader uniforms for wind animation
-    if (materialRef.current) {
-      materialRef.current.uniforms.time.value = state.clock.elapsedTime;
-      
-      // Dynamic wind direction and strength
-      const windTime = state.clock.elapsedTime * 0.5;
-      materialRef.current.uniforms.windDirection.value.set(
-        Math.sin(windTime) * 0.8 + 0.5,
-        Math.cos(windTime * 1.3) * 0.6 + 0.4
-      );
-      
-      // Varying wind strength for natural gusts
-      const gustStrength = 0.3 + Math.sin(windTime * 2.1) * 0.2;
-      materialRef.current.uniforms.windStrength.value = gustStrength;
+  // Optimized wind animation with LOD
+  useFrame((_, delta) => {
+    if (!meshRef.current) return;
+    
+    windTime.current += delta * 0.5;
+    
+    // Only animate if camera is close enough
+    const distance = camera.position.distanceTo(meshRef.current.position);
+    if (distance < 100) {
+      // Very subtle wind animation
+      const windStrength = Math.min(1, 50 / distance); // Fade with distance
+      meshRef.current.rotation.z = Math.sin(windTime.current) * 0.008 * windStrength;
+      meshRef.current.rotation.x = Math.cos(windTime.current * 0.7) * 0.005 * windStrength;
     }
   });
 
+  // Setup instance colors
+  useEffect(() => {
+    if (meshRef.current && colorArray) {
+      const colorAttribute = new THREE.InstancedBufferAttribute(colorArray, 3);
+      meshRef.current.geometry.setAttribute('instanceColor', colorAttribute);
+    }
+  }, [colorArray]);
+
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[geometry, material, count]}
-      castShadow={false}
-      receiveShadow={false}
-    >
-      <primitive ref={materialRef} object={material} attach="material" />
-      <bufferAttribute
-        attach="instanceMatrix"
-        args={[matrices, 16]}
-        usage={THREE.StaticDrawUsage}
-      />
-    </instancedMesh>
+    <group>
+      {/* Dark soil ground like the realistic patch */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
+        <planeGeometry args={[fieldSize * 1.2, fieldSize * 1.2]} />
+        <meshStandardMaterial 
+          color="#2a1f1a" 
+          roughness={0.9}
+        />
+      </mesh>
+      
+      {/* Grass field */}
+      <instancedMesh
+        ref={meshRef}
+        args={[geometry, material, actualCount]}
+        castShadow={false}  // Disabled for performance
+        receiveShadow={false}
+        frustumCulled={true}  // Enable culling for performance
+      >
+        <primitive object={material} attach="material" />
+        <bufferAttribute
+          attach="instanceMatrix"
+          args={[matrices, 16]}
+          usage={THREE.StaticDrawUsage}
+        />
+      </instancedMesh>
+    </group>
   );
 }

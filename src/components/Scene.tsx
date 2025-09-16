@@ -1,8 +1,7 @@
 import React from 'react';
 import { Environment, Sky } from '@react-three/drei';
 import Terrain from './Terrain';
-import GrassField from './GrassField';
-import GrassFieldLOD from './GrassFieldLOD';
+import RealisticGrassDemo from './RealisticGrassDemo';
 import Lighting from './Lighting';
 import WindSystem from './WindSystem';
 
@@ -26,13 +25,13 @@ export default function Scene({ useLOD = false }: SceneProps) {
         mieDirectionalG={0.7}
       />
       
-      <Environment preset="sunset" />
+      <Environment preset="sunset" background={false} />
       
-      <fog attach="fog" args={['#98FB98', 50, 200]} />
+      <fog attach="fog" args={['#98FB98', 80, 150]} />
       
       <WindSystem />
       <Terrain />
-      {useLOD ? <GrassFieldLOD /> : <GrassField />}
+      <RealisticGrassDemo />
     </>
   );
 }

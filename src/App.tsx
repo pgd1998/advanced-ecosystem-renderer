@@ -55,12 +55,20 @@ export default function App() {
           near: 0.1,
           far: 20000
         }}
-        dpr={[1, 2]}
+        dpr={[0.5, 1.5]} // Reduced DPR for better performance
         gl={{
-          antialias: true,
+          antialias: false, // Disabled for better performance
           alpha: false,
           powerPreference: "high-performance",
-          preserveDrawingBuffer: false
+          preserveDrawingBuffer: false,
+          stencil: false,
+          depth: true
+        }}
+        performance={{
+          current: 1,
+          min: 0.5,
+          max: 1,
+          debounce: 200
         }}
         style={{
           background: 'linear-gradient(180deg, #87CEEB 0%, #B0E0E6 30%, #98FB98 100%)'

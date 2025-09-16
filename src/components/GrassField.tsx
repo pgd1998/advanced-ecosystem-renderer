@@ -17,24 +17,23 @@ export default function GrassField({
   const { camera } = useThree();
   const windTime = useRef(0);
 
-  // Create grass blade geometry scaled up from the realistic patch
+  // Use EXACT same blade geometry as your successful realistic patch
   const createGrassBlade = (lod: 'high' | 'medium' | 'low' = 'medium') => {
-    // Adjust segments based on LOD
-    const segments = lod === 'high' ? [2, 8] : lod === 'medium' ? [1, 4] : [1, 2];
-    // Scale from realistic patch: original was 0.0012m x 0.012m, scale up by factor of ~40
-    // This gives us ~5cm wide x 50cm tall grass blades
-    const geometry = new THREE.PlaneGeometry(0.05, 0.5, segments[0], segments[1]);
+    // Use same segments as realistic patch for quality
+    const segments = [3, 16]; // Same as successful realistic patch
+    // Make blades very large so they're definitely visible: 1m x 3m
+    const geometry = new THREE.PlaneGeometry(1, 3, segments[0], segments[1]);
     const positions = geometry.attributes.position.array as Float32Array;
     
     for (let i = 0; i < positions.length; i += 3) {
       const originalY = positions[i + 1];
-      const y = originalY + 0.25; // Shift so y goes from 0 to 0.5 (50cm)
+      const y = originalY + 1.5; // Shift so y goes from 0 to 3 (3m tall)
       const x = positions[i];
       
       // Ensure we don't divide by zero or get NaN
-      if (y >= 0 && y <= 0.5) {
+      if (y >= 0 && y <= 3) {
         // Smoother taper using cosine for rounded tip
-        const heightRatio = Math.min(Math.max(y / 0.5, 0), 1); // Clamp between 0 and 1
+        const heightRatio = Math.min(Math.max(y / 3, 0), 1); // Clamp between 0 and 1
         const taperAngle = heightRatio * Math.PI * 0.45;
         const taperFactor = Math.cos(taperAngle) * 0.9; // Cosine taper for round tip
         
@@ -43,22 +42,22 @@ export default function GrassField({
           positions[i] = x * taperFactor; // Gentler taper
         }
         
-        // Natural grass bend - scaled proportionally
-        const bendAmount = Math.pow(heightRatio, 2.5) * 0.06; // Proportional bend for 50cm grass
+        // Natural grass bend - scaled for 3m blade
+        const bendAmount = Math.pow(heightRatio, 2.5) * 0.3; // Proportional to blade height
         if (!isNaN(bendAmount) && isFinite(bendAmount)) {
           positions[i + 2] = bendAmount;
           
-          // Add subtle wave for organic feel
-          const waveAmount = Math.sin(heightRatio * Math.PI * 2) * 0.003;
+          // Add subtle wave for organic feel - scaled for 3m blade
+          const waveAmount = Math.sin(heightRatio * Math.PI * 2) * 0.03;
           if (!isNaN(waveAmount) && isFinite(waveAmount)) {
             positions[i + 2] += waveAmount;
           }
         }
         
-        // Slight droop at the tip for softness
+        // Slight droop at the tip for softness - scaled for 3m blade
         if (heightRatio > 0.7) {
           const droopFactor = (heightRatio - 0.7) / 0.3;
-          const droopAmount = droopFactor * droopFactor * 0.02;
+          const droopAmount = droopFactor * droopFactor * 0.2;
           if (!isNaN(droopAmount) && isFinite(droopAmount)) {
             positions[i + 1] = y - droopAmount;
           } else {
@@ -84,24 +83,35 @@ export default function GrassField({
   const { geometry, material, matrices, colorArray, actualCount } = useMemo(() => {
     const grassGeometry = createGrassBlade('medium');
 
-    // Use realistic but performance-friendly material
-    const grassMaterial = new THREE.MeshStandardMaterial({
+    // Use the same realistic material as the successful patch
+    const grassMaterial = new THREE.MeshPhysicalMaterial({
       vertexColors: true,
       side: THREE.DoubleSide,
-      roughness: 0.95,
-      metalness: 0,
-      alphaTest: 0.1, // For better transparency performance
+      roughness: 0.95,  // More matte, less shiny
+      metalness: 0,      // No metallic look
+      sheen: 0.5,        // Soft fabric-like sheen
+      sheenColor: new THREE.Color('#90ee90'),  // Light green sheen
+      sheenRoughness: 0.8,
+      clearcoat: 0.05,   // Very subtle coating
+      clearcoatRoughness: 1,
+      transmission: 0.02, // Tiny bit of translucency
+      thickness: 0.1
     });
 
-    // Replicate the EXACT realistic patch scaled up
-    // Original patch: 25x25 = 625 blades in 0.03m (3cm) patch
-    // Scale factor: 30m / 0.03m = 1000x
-    // We'll use the exact same 25x25 grid but scaled up
-    const gridSize = 25; // Same as realistic patch
-    const calculatedCount = count || (gridSize * gridSize);
-    const spacing = fieldSize / gridSize; // 30m / 25 = 1.2m spacing between blades
+    // Use realistic patch density approach with performance scaling
+    // Your successful patch: 70x70 = 4,900 blades in 3m x 3m (very realistic!)
+    // Scale this density to main field but with performance considerations
+    const patchDensity = 70; // From your successful realistic patch
+    const patchSize = 3; // 3m x 3m successful patch
+    const densityRatio = patchDensity / patchSize; // 23.33 blades per meter
     
-    console.log(`Scaled realistic patch: ${fieldSize}m x ${fieldSize}m, Grid: ${gridSize}x${gridSize}, Grass count: ${calculatedCount}, Spacing: ${spacing}m`);
+    // For 30m field, this would be 700x700 = 490,000 blades (too much!)
+    // Start with very few blades so we can see them
+    const gridSize = 5; // Just 5x5 = 25 blades to start
+    const calculatedCount = count || (gridSize * gridSize);
+    const spacing = fieldSize / gridSize;
+    
+    console.log(`Realistic density approach: ${fieldSize}m x ${fieldSize}m, Grid: ${gridSize}x${gridSize}, Grass count: ${calculatedCount}, Spacing: ${spacing.toFixed(2)}m`);
 
     // Generate grass positions using the EXACT same grid as realistic patch
     const matrixArray = new Float32Array(calculatedCount * 16);
@@ -110,56 +120,60 @@ export default function GrassField({
     
     let bladeIndex = 0;
     
-    for (let x = 0; x < gridSize && bladeIndex < calculatedCount; x++) {
-      for (let z = 0; z < gridSize && bladeIndex < calculatedCount; z++) {
-        // Position with random offset like the realistic patch
-        const posX = (x * spacing - fieldSize/2) + (Math.random() - 0.5) * spacing * 0.5;
-        const posZ = (z * spacing - fieldSize/2) + (Math.random() - 0.5) * spacing * 0.5;
-        
-        // Get terrain height at this position
-        const height = noise2D(posX * 0.01, posZ * 0.01) * 2;
-        
-        // Position grass blade at ground level
-        dummy.position.set(posX, height, posZ);
-        
-        // Random attributes for each blade (same as realistic patch)
-        dummy.rotation.set(
-          (Math.random() - 0.5) * 0.3,  // Lean X
-          Math.random() * Math.PI * 2,   // Random Y rotation
-          (Math.random() - 0.5) * 0.3   // Lean Z
-        );
-        
-        // Scale variation like the realistic patch
-        const scale = 0.8 + Math.random() * 0.4; // Scale variation
-        dummy.scale.set(
-          scale * 1.1, // Slightly wider like the patch
-          scale * 1.3, // Height variation like the patch
-          scale
-        );
-        
-        dummy.updateMatrix();
-        dummy.matrix.toArray(matrixArray, bladeIndex * 16);
-        
-        // Generate realistic grass colors (same as patch)
-        const hue = 105 + Math.random() * 25; // Green range
-        const saturation = 35 + Math.random() * 20;
-        const lightness = 28 + Math.random() * 12;
-        
-        const color = new THREE.Color(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
-        colors[bladeIndex * 3] = color.r;
-        colors[bladeIndex * 3 + 1] = color.g;
-        colors[bladeIndex * 3 + 2] = color.b;
-        
-        bladeIndex++;
-      }
+    // Fill exactly calculatedCount positions
+    for (let i = 0; i < calculatedCount; i++) {
+      const x = i % gridSize;
+      const z = Math.floor(i / gridSize);
+      
+      // Position with random offset
+      const posX = (x * spacing - fieldSize/2) + (Math.random() - 0.5) * spacing * 0.5;
+      const posZ = (z * spacing - fieldSize/2) + (Math.random() - 0.5) * spacing * 0.5;
+      
+      // Get terrain height at this position
+      const height = noise2D(posX * 0.01, posZ * 0.01) * 2;
+      
+      // Position grass blade at ground level
+      dummy.position.set(posX, height, posZ);
+      
+      // Grass attributes
+      dummy.rotation.set(
+        (Math.random() - 0.5) * 0.3,  // Lean X
+        Math.random() * Math.PI * 2,   // Random Y rotation
+        (Math.random() - 0.5) * 0.3   // Lean Z
+      );
+      
+      // Scale variation
+      const scale = 0.8 + Math.random() * 0.4;
+      dummy.scale.set(
+        scale * 1.1, // Slightly wider
+        scale * 1.3, // Height variation
+        scale        // Depth
+      );
+      
+      dummy.updateMatrix();
+      dummy.matrix.toArray(matrixArray, i * 16);
+      
+      // Generate realistic grass colors
+      const hue = 105 + Math.random() * 25;
+      const saturation = 35 + Math.random() * 20;
+      const lightness = 28 + Math.random() * 12;
+      
+      const color = new THREE.Color(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
+      colors[i * 3] = color.r;
+      colors[i * 3 + 1] = color.g;
+      colors[i * 3 + 2] = color.b;
+      
+      bladeIndex++;
     }
 
+    console.log(`Generated ${bladeIndex} grass blades, expected ${calculatedCount}`);
+    
     return { 
       geometry: grassGeometry, 
       material: grassMaterial, 
       matrices: matrixArray,
       colorArray: colors,
-      actualCount: bladeIndex
+      actualCount: calculatedCount // Use calculatedCount to match matrix array size
     };
   }, [count, fieldSize, noise2D]);
 

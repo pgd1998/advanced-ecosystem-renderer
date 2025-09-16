@@ -11,7 +11,7 @@ interface TerrainProps {
 
 export default function Terrain({ 
   size = 100, 
-  resolution = 64, 
+  resolution = 32, // Reduced from 64 for better performance
   heightScale = 4 
 }: TerrainProps) {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -42,22 +42,23 @@ export default function Terrain({
     // Recompute normals for proper lighting
     geo.computeVertexNormals();
     
-    // Create material with realistic ground appearance
+    // Create material with realistic soil appearance
     const mat = new THREE.MeshLambertMaterial({
-      color: '#3d5a3d',
+      color: '#4a3728', // Brown soil color instead of green
       side: THREE.DoubleSide
     });
     
     return { geometry: geo, material: mat };
   }, [size, resolution, heightScale, noise2D]);
 
-  useFrame((state) => {
-    if (meshRef.current) {
-      // Subtle terrain breathing effect
-      const time = state.clock.elapsedTime;
-      meshRef.current.position.y = Math.sin(time * 0.1) * 0.1;
-    }
-  });
+  // Removed animation for better performance
+  // useFrame((state) => {
+  //   if (meshRef.current) {
+  //     // Subtle terrain breathing effect
+  //     const time = state.clock.elapsedTime;
+  //     meshRef.current.position.y = Math.sin(time * 0.1) * 0.1;
+  //   }
+  // });
 
   return (
     <mesh

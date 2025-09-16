@@ -1,7 +1,10 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
+import { useRealisticGrassControls } from '../hooks/useRealisticGrassControls';
 
 export default function RealisticGrassDemo() {
+  const controls = useRealisticGrassControls();
+  
   // Create more realistic grass blade geometry
   const createGrassBlade = useMemo(() => {
     return () => {
@@ -47,22 +50,22 @@ export default function RealisticGrassDemo() {
     };
   }, []);
 
-  // Create smooth, soft grass blade geometry scaled up
+  // Create smooth, soft grass blade geometry with interactive controls
   const createSimpleGrassBlade = useMemo(() => {
     return () => {
-      // Use moderate scaling: 1.2cm wide x 12cm tall (scale factor 10x from original)
-      const geometry = new THREE.PlaneGeometry(0.012, 0.12, 3, 16); // More reasonable scale
+      // Use controls for blade dimensions
+      const geometry = new THREE.PlaneGeometry(controls.bladeWidth, controls.bladeHeight, 3, 16);
       const positions = geometry.attributes.position.array as Float32Array;
       
       for (let i = 0; i < positions.length; i += 3) {
         const originalY = positions[i + 1];
-        const y = originalY + 0.06; // Shift so y goes from 0 to 0.12 (12cm)
+        const y = originalY + controls.bladeHeight/2; // Shift based on control height
         const x = positions[i];
         
         // Ensure we don't divide by zero or get NaN
-        if (y >= 0 && y <= 0.12) {
+        if (y >= 0 && y <= controls.bladeHeight) {
           // Smoother taper using cosine for rounded tip
-          const heightRatio = Math.min(Math.max(y / 0.12, 0), 1); // Clamp between 0 and 1
+          const heightRatio = Math.min(Math.max(y / controls.bladeHeight, 0), 1); // Clamp between 0 and 1
           const taperAngle = heightRatio * Math.PI * 0.45;
           const taperFactor = Math.cos(taperAngle) * 0.9; // Cosine taper for round tip
           
@@ -71,22 +74,22 @@ export default function RealisticGrassDemo() {
             positions[i] = x * taperFactor; // Gentler taper
           }
           
-          // Natural grass bend - moderate scaling
-          const bendAmount = Math.pow(heightRatio, 2.5) * 0.015; // Proportional to 12cm height
+          // Natural grass bend - proportional to blade height
+          const bendAmount = Math.pow(heightRatio, 2.5) * (controls.bladeHeight * 0.125);
           if (!isNaN(bendAmount) && isFinite(bendAmount)) {
             positions[i + 2] = bendAmount;
             
-            // Add very subtle wave for organic feel
-            const waveAmount = Math.sin(heightRatio * Math.PI * 2) * 0.001;
+            // Add very subtle wave for organic feel - proportional to blade height
+            const waveAmount = Math.sin(heightRatio * Math.PI * 2) * (controls.bladeHeight * 0.008);
             if (!isNaN(waveAmount) && isFinite(waveAmount)) {
               positions[i + 2] += waveAmount;
             }
           }
           
-          // Slight droop at the tip for softness
+          // Slight droop at the tip for softness - proportional to blade height
           if (heightRatio > 0.7) {
             const droopFactor = (heightRatio - 0.7) / 0.3;
-            const droopAmount = droopFactor * droopFactor * 0.008;
+            const droopAmount = droopFactor * droopFactor * (controls.bladeHeight * 0.067);
             if (!isNaN(droopAmount) && isFinite(droopAmount)) {
               positions[i + 1] = y - droopAmount;
             } else {
@@ -108,13 +111,13 @@ export default function RealisticGrassDemo() {
       geometry.computeVertexNormals();
       return geometry;
     };
-  }, []);
+  }, [controls.bladeWidth, controls.bladeHeight]);
 
-  // Create varied grass blades with moderate scaling
+  // Create varied grass blades with interactive controls
   const grassData = useMemo(() => {
     const blades = [];
-    const patchSize = 3; // 3m (moderate scale up from 3cm)
-    const density = 70; // Double the density (was 25, now 50)
+    const patchSize = controls.patchSize;
+    const density = controls.density;
     const spacing = patchSize / density;
     
     for (let x = 0; x < density; x++) {
@@ -142,32 +145,32 @@ export default function RealisticGrassDemo() {
     }
     
     return blades;
-  }, []);
+  }, [controls.patchSize, controls.density]);
 
   const simpleBladeGeo = useMemo(() => createSimpleGrassBlade(), [createSimpleGrassBlade]);
 
   return (
-    <group position={[0, 0, 0]}>
-      {/* Dark soil ground - moderate scaling */}
+    <group position={[controls.position.x, controls.position.y, controls.position.z]}>
+      {/* Dark soil ground - scaled to patch size */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]}>
-        <planeGeometry args={[4, 4]} />
+        <planeGeometry args={[controls.patchSize * 1.2, controls.patchSize * 1.2]} />
         <meshStandardMaterial 
           color="#2a1f1a" 
           roughness={0.9}
         />
       </mesh>
       
-      {/* Add some dirt particles for realism - moderate scaling */}
+      {/* Add some dirt particles for realism - scaled to patch size */}
       {Array.from({ length: 20 }).map((_, i) => (
         <mesh
           key={`dirt-${i}`}
           position={[
-            (Math.random() - 0.5) * 3,
-            Math.random() * 0.002,
-            (Math.random() - 0.5) * 3
+            (Math.random() - 0.5) * controls.patchSize,
+            Math.random() * (controls.patchSize * 0.001),
+            (Math.random() - 0.5) * controls.patchSize
           ]}
         >
-          <sphereGeometry args={[0.002 + Math.random() * 0.003, 4, 4]} />
+          <sphereGeometry args={[(controls.patchSize * 0.001) + Math.random() * (controls.patchSize * 0.001), 4, 4]} />
           <meshStandardMaterial color="#1a0f0a" roughness={1} />
         </mesh>
       ))}
@@ -197,20 +200,22 @@ export default function RealisticGrassDemo() {
         </mesh>
       ))}
       
-      {/* Reference objects - moderate scaling */}
-      <group position={[1.8, 0, 1.8]}>
-        {/* 50cm reference line */}
-        <mesh>
-          <boxGeometry args={[0.5, 0.01, 0.01]} />
-          <meshBasicMaterial color="yellow" />
-        </mesh>
-        
-        {/* 1m height reference */}
-        <mesh position={[0, 0.5, 0]}>
-          <boxGeometry args={[0.01, 1, 0.01]} />
-          <meshBasicMaterial color="cyan" />
-        </mesh>
-      </group>
+      {/* Reference objects - conditional display */}
+      {controls.showReference && (
+        <group position={[controls.patchSize * 0.6, 0, controls.patchSize * 0.6]}>
+          {/* Reference line proportional to patch size */}
+          <mesh>
+            <boxGeometry args={[controls.patchSize * 0.1, 0.002, 0.002]} />
+            <meshBasicMaterial color="yellow" />
+          </mesh>
+          
+          {/* Height reference */}
+          <mesh position={[0, controls.patchSize * 0.05, 0]}>
+            <boxGeometry args={[0.002, controls.patchSize * 0.1, 0.002]} />
+            <meshBasicMaterial color="cyan" />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }

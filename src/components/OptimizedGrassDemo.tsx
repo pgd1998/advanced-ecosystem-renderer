@@ -281,8 +281,8 @@ export default function OptimizedGrassDemo() {
         position={[0, -0.001, 0]}
       >
         <meshStandardMaterial 
-          color="#2a1f1a" 
-          roughness={0.9}
+          color="#6b4e3d" 
+          roughness={0.85}
         />
       </mesh>
       

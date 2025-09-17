@@ -68,6 +68,44 @@ export default function GrassDemo() {
         </Suspense>
       </Canvas>
       
+      {/* Minimal Interactive Guide */}
+      <div style={{
+        position: 'absolute',
+        bottom: 20,
+        left: 20,
+        background: 'rgba(0, 0, 0, 0.7)',
+        padding: '15px 20px',
+        borderRadius: '10px',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontSize: '13px',
+        color: 'white',
+        maxWidth: '320px',
+        backdropFilter: 'blur(10px)',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+      }}>
+        <div style={{ marginBottom: '12px', fontSize: '14px', fontWeight: '600', color: '#ffd89b' }}>
+          🌾 Interactive Grass Field
+        </div>
+        <div style={{ lineHeight: '1.6' }}>
+          <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
+            <span style={{ marginRight: '8px' }}>🖱️</span>
+            <span><strong>Mouse:</strong> Drag to orbit • Scroll to zoom</span>
+          </div>
+          <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
+            <span style={{ marginRight: '8px' }}>🎮</span>
+            <span><strong>Panel:</strong> Adjust grass density, size & colors</span>
+          </div>
+          <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
+            <span style={{ marginRight: '8px' }}>💨</span>
+            <span><strong>Wind:</strong> Control strength, speed & direction</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span style={{ marginRight: '8px' }}>🔍</span>
+            <span><strong>Tip:</strong> Zoom in to see individual grass blades wave!</span>
+          </div>
+        </div>
+      </div>
+      
       {/* Instructions */}
       {/* <div style={{
         position: 'absolute',
